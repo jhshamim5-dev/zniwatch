@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script>
+      // Suppress ALL chrome-extension errors immediately
+      (function() {
+        function shouldSuppress(e) {
+          if (!e) return false;
+          var str = JSON.stringify(e) + (e.message || '') + (e.stack || '') + (e.reason ? (e.reason.message || '') + (e.reason.stack || '') : '');
+          return str.indexOf('chrome-extension://') !== -1 || 
+                 str.indexOf('MetaMask') !== -1 || 
+                 str.indexOf('ethereum') !== -1 ||
+                 str.indexOf('inpage.js') !== -1;
+        }
+        window.addEventListener('error', function(e) {
+          if (shouldSuppress(e) || shouldSuppress(e.error)) { e.preventDefault(); e.stopImmediatePropagation(); return false; }
+        }, true);
+        window.addEventListener('unhandledrejection', function(e) {
+          if (shouldSuppress(e) || shouldSuppress(e.reason)) { e.preventDefault(); e.stopImmediatePropagation(); return false; }
+        }, true);
+        // Override window.onerror
+        window.onerror = function(msg, url, line, col, error) {
+          if (shouldSuppress({message: msg, stack: url})) return true;
+        };
+        // Override onunhandledrejection
+        window.onunhandledrejection = function(e) {
+          if (shouldSuppress(e) || shouldSuppress(e.reason)) return true;
+        };
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    
+    <title>AniStream - Premium Anime Streaming</title>
+    <meta name="description" content="Premium anime streaming with real-time AniList integration. Discover trending anime, track your watchlist, and enjoy beautiful HD content." />
+    <meta name="keywords" content="anime, streaming, anilist, anime tracker, watch anime, trending anime" />
+    <meta name="author" content="AniStream" />
+
+    <meta property="og:title" content="AniStream - Premium Anime Streaming" />
+    <meta property="og:description" content="Discover trending anime, track your watchlist, and enjoy beautiful HD content with real-time AniList integration." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@AniStream" />
+    <meta name="twitter:image" content="/og-image.png" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+  </body>
+</html>
