@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Maximize, Minimize, AlertCircle, SkipForward, Play, Pause, Volume2, VolumeX, Settings, Server, Captions, CaptionsOff, RotateCcw, RotateCw, Gauge, Languages, Square } from 'lucide-react';
+import { ArrowLeft, Maximize, Minimize, AlertCircle, SkipForward, Play, Pause, Volume2, VolumeX, Settings, Server, Captions, CaptionsOff, RotateCcw, RotateCw, Gauge, Languages } from 'lucide-react';
 import { useAnimeDetails, useAnimeEpisodes } from '@/hooks/useAnime';
 import { useWatchHistory } from '@/hooks/useWatchHistory';
 import { WatchHistoryEntry } from '@/lib/db';
@@ -13,7 +13,6 @@ const API_BASE = 'https://kaido-api-v1-opal.vercel.app';
 const CORS_PROXY = '/api/proxy?url=';
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
-const ASPECT_RATIOS = ['Default', '16:9', '4:3', '2.35:1', 'Full'];
 
 interface StreamServer {
   type: string;
@@ -72,8 +71,6 @@ const VideoPlayer = () => {
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showServerMenu, setShowServerMenu] = useState(false);
   const [showPlaybackSpeedMenu, setShowPlaybackSpeedMenu] = useState(false);
-  const [showAspectRatioMenu, setShowAspectRatioMenu] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState('Default');
   const [seekFeedback, setSeekFeedback] = useState<'forward' | 'backward' | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -89,11 +86,11 @@ const VideoPlayer = () => {
   const [currentAudioType, setCurrentAudioType] = useState<'sub' | 'dub'>(audioType);
   const [hasDub, setHasDub] = useState(false);
   const [introOutro, setIntroOutro] = useState<{ intro?: { start: number; end: number }; outro?: { start: number; end: number } }>({});
-    const introOutroRef = useRef<{ intro?: { start: number; end: number }; outro?: { start: number; end: number } }>({});
-    const [showSkipIntro, setShowSkipIntro] = useState(false);
-    const [showSkipOutro, setShowSkipOutro] = useState(false);
-    const isTouchRef = useRef(false);
-    const [savedProgress, setSavedProgress] = useState<WatchHistoryEntry | null>(null);
+  const introOutroRef = useRef<{ intro?: { start: number; end: number }; outro?: { start: number; end: number } }>({});
+  const [showSkipIntro, setShowSkipIntro] = useState(false);
+  const [showSkipOutro, setShowSkipOutro] = useState(false);
+  const isTouchRef = useRef(false);
+  const [savedProgress, setSavedProgress] = useState<WatchHistoryEntry | null>(null);
   const [progressLoaded, setProgressLoaded] = useState(false);
   const currentTimeRef = useRef(0);
   const durationRef = useRef(0);
@@ -126,20 +123,20 @@ const VideoPlayer = () => {
     }, 3000);
   }, [isPlaying]);
 
-    const toggleControls = useCallback(() => {
-      setShowControls(prev => {
-        const next = !prev;
-        if (controlsTimeoutRef.current) {
-          clearTimeout(controlsTimeoutRef.current);
-        }
-        if (next && isPlaying) {
-          controlsTimeoutRef.current = setTimeout(() => {
-            setShowControls(false);
-          }, 3000);
-        }
-        return next;
-      });
-    }, [isPlaying]);
+  const toggleControls = useCallback(() => {
+    setShowControls(prev => {
+      const next = !prev;
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      if (next && isPlaying) {
+        controlsTimeoutRef.current = setTimeout(() => {
+          setShowControls(false);
+        }, 3000);
+      }
+      return next;
+    });
+  }, [isPlaying]);
 
   const togglePlay = useCallback(() => {
     const art = artRef.current;
@@ -192,28 +189,6 @@ const VideoPlayer = () => {
     art.playbackRate = speed;
     setPlaybackSpeed(speed);
     setShowPlaybackSpeedMenu(false);
-  };
-
-  const changeAspectRatio = (ratio: string) => {
-    const art = artRef.current;
-    if (!art) return;
-    setAspectRatio(ratio);
-    setShowAspectRatioMenu(false);
-    
-    // Add persistent storage or ensure it's applied to the video element directly too
-    const video = art.video;
-    if (video) {
-      if (ratio === 'Full') {
-        video.style.objectFit = 'cover';
-        art.aspectRatio = '';
-      } else if (ratio === 'Default') {
-        video.style.objectFit = 'contain';
-        art.aspectRatio = '';
-      } else {
-        video.style.objectFit = 'contain';
-        art.aspectRatio = ratio.toLowerCase();
-      }
-    }
   };
 
   const toggleFullscreen = async () => {
@@ -276,55 +251,55 @@ const VideoPlayer = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [togglePlay, toggleMute, skipForward, skipBackward, volume]);
 
-    const lastTapRef = useRef<number>(0);
-      const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<number>(0);
+  const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-      const handleTouchTap = useCallback((side: 'left' | 'right' | 'center') => {
-        isTouchRef.current = true;
-        const now = Date.now();
-        const diff = now - lastTapRef.current;
+  const handleTouchTap = useCallback((side: 'left' | 'right' | 'center') => {
+    isTouchRef.current = true;
+    const now = Date.now();
+    const diff = now - lastTapRef.current;
 
-        if (diff < 300) {
-          if (singleTapTimerRef.current) {
-            clearTimeout(singleTapTimerRef.current);
-            singleTapTimerRef.current = null;
-          }
-          if (side === 'left') skipBackward();
-          else if (side === 'right') skipForward();
-          lastTapRef.current = 0;
-        } else {
-          lastTapRef.current = now;
-          singleTapTimerRef.current = setTimeout(() => {
-            toggleControls();
-            singleTapTimerRef.current = null;
-          }, 300);
-        }
-      }, [skipBackward, skipForward, toggleControls]);
+    if (diff < 300) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      if (side === 'left') skipBackward();
+      else if (side === 'right') skipForward();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      singleTapTimerRef.current = setTimeout(() => {
+        toggleControls();
+        singleTapTimerRef.current = null;
+      }, 300);
+    }
+  }, [skipBackward, skipForward, toggleControls]);
 
-      const handleClickTap = useCallback((side: 'left' | 'right' | 'center') => {
-        if (isTouchRef.current) {
-          isTouchRef.current = false;
-          return;
-        }
-        const now = Date.now();
-        const diff = now - lastTapRef.current;
+  const handleClickTap = useCallback((side: 'left' | 'right' | 'center') => {
+    if (isTouchRef.current) {
+      isTouchRef.current = false;
+      return;
+    }
+    const now = Date.now();
+    const diff = now - lastTapRef.current;
 
-        if (diff < 300) {
-          if (singleTapTimerRef.current) {
-            clearTimeout(singleTapTimerRef.current);
-            singleTapTimerRef.current = null;
-          }
-          if (side === 'left') skipBackward();
-          else if (side === 'right') skipForward();
-          lastTapRef.current = 0;
-        } else {
-          lastTapRef.current = now;
-          singleTapTimerRef.current = setTimeout(() => {
-            toggleControls();
-            singleTapTimerRef.current = null;
-          }, 300);
-        }
-      }, [skipBackward, skipForward, toggleControls]);
+    if (diff < 300) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      if (side === 'left') skipBackward();
+      else if (side === 'right') skipForward();
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      singleTapTimerRef.current = setTimeout(() => {
+        toggleControls();
+        singleTapTimerRef.current = null;
+      }, 300);
+    }
+  }, [skipBackward, skipForward, toggleControls]);
 
   const doSaveProgress = useCallback(async () => {
     if (!id || !episode || !epId || !anime || durationRef.current <= 0) return;
@@ -370,16 +345,16 @@ const VideoPlayer = () => {
       }
 
       setStreamData(json.results);
-        const allServers = json.results.servers || [];
-        setServers(allServers);
-        setHasDub(allServers.some((s: StreamServer) => s.type === 'dub'));
+      const allServers = json.results.servers || [];
+      setServers(allServers);
+      setHasDub = allServers.some((s: StreamServer) => s.type === 'dub');
       setSubtitles(json.results.streamingLink.tracks || []);
-        const io = {
-          intro: json.results.streamingLink.intro,
-          outro: json.results.streamingLink.outro,
-        };
-        setIntroOutro(io);
-        introOutroRef.current = io;
+      const io = {
+        intro: json.results.streamingLink.intro,
+        outro: json.results.streamingLink.outro,
+      };
+      setIntroOutro(io);
+      introOutroRef.current = io;
 
       return json.results;
     } catch (err) {
@@ -400,11 +375,11 @@ const VideoPlayer = () => {
       const streamUrl = result.streamingLink.link.file;
       const tracks: StreamTrack[] = result.streamingLink.tracks || [];
       const defaultSub = tracks.find(t => t.kind === 'captions' && t.default) || tracks.find(t => t.kind === 'captions');
-        if (defaultSub) {
-          setCurrentSubtitle(defaultSub.label);
-        } else {
-          setCurrentSubtitle(null);
-        }
+      if (defaultSub) {
+        setCurrentSubtitle(defaultSub.label);
+      } else {
+        setCurrentSubtitle(null);
+      }
 
       if (artRef.current) {
         artRef.current.destroy();
@@ -427,12 +402,11 @@ const VideoPlayer = () => {
         autoMini: false,
         screenshot: false,
         setting: false,
-          loop: false,
-          flip: false,
-          playbackRate: false,
-          aspectRatio: true,
-          fullscreen: false,
-
+        loop: false,
+        flip: false,
+        playbackRate: false,
+        aspectRatio: true,
+        fullscreen: false,
         fullscreenWeb: false,
         subtitleOffset: false,
         miniProgressBar: false,
@@ -441,132 +415,116 @@ const VideoPlayer = () => {
         playsInline: true,
         autoPlayback: false,
         theme: 'hsl(var(--primary))',
-          cssVar: {},
-            ...(defaultSub ? {
-                  subtitle: {
-                    url: defaultSub.file,
-                    type: 'vtt',
-                    encoding: 'utf-8',
-                    escape: false,
-                    style: {
-                      color: '#fff',
-                      fontSize: '18px',
-                      textShadow: '0 2px 4px rgba(0,0,0,0.8)',
-                    },
-                  },
-                } : {}),
-        customType: {
-          m3u8: function (video: HTMLVideoElement, url: string) {
-                if (Hls.isSupported()) {
-                  const proxiedUrl = CORS_PROXY + encodeURIComponent(url);
-                    const hls = new Hls({
-                        enableWorker: true,
-                        lowLatencyMode: false,
-                        // Start playback quickly with small initial buffer
-                        maxBufferLength: 30,
-                        maxMaxBufferLength: 60,
-                        maxBufferSize: 60 * 1000 * 1000,
-                        maxBufferHole: 0.3,
-                        highBufferWatchdogPeriod: 3,
-                        nudgeOffset: 0.2,
-                        nudgeMaxRetry: 8,
-                        startLevel: -1,
-                        autoStartLoad: true,
-                        backBufferLength: 10,
-                        // ABR — start with high estimate so it picks good quality fast
-                        abrEwmaDefaultEstimate: 8000000,
-                        abrEwmaFastLive: 5,
-                        abrEwmaSlowLive: 10,
-                        abrEwmaFastVoD: 5,
-                        abrEwmaSlowVoD: 10,
-                        // Segment loading — short timeout, many retries with small delay
-                        fragLoadingTimeOut: 20000,
-                        fragLoadingMaxRetry: 6,
-                        fragLoadingRetryDelay: 200,
-                        fragLoadingMaxRetryTimeout: 4000,
-                        // Manifest / level loading
-                        levelLoadingTimeOut: 15000,
-                        levelLoadingMaxRetry: 4,
-                        levelLoadingRetryDelay: 200,
-                        manifestLoadingTimeOut: 15000,
-                        manifestLoadingMaxRetry: 3,
-                        manifestLoadingRetryDelay: 200,
-                        startFragPrefetch: true,
-                        progressive: true,
-                    xhrSetup: (xhr: XMLHttpRequest, xhrUrl: string) => {
-                      const finalUrl = xhrUrl.startsWith(CORS_PROXY) ? xhrUrl : CORS_PROXY + encodeURIComponent(xhrUrl);
-                      xhr.open('GET', finalUrl, true);
-                    },
-                  });
-
-                  hlsInstanceRef.current = hls;
-                  hls.loadSource(proxiedUrl);
-                hls.attachMedia(video);
-
-                hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-                  if (!mounted) return;
-                  const levels = data.levels.map((level, index) => ({
-                    height: level.height,
-                    index,
-                  }));
-                  setQualityLevels(levels);
-
-                  const target1080 = levels.find(l => l.height === 1080);
-                  if (target1080) {
-                    hls.currentLevel = target1080.index;
-                    setCurrentQuality(target1080.index);
-                  } else if (levels.length > 0) {
-                    const highest = levels.reduce((a, b) => a.height > b.height ? a : b);
-                    hls.currentLevel = highest.index;
-                    setCurrentQuality(highest.index);
-                  }
-                });
-
-                hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
-                  if (!mounted) return;
-                  setCurrentQuality(data.level);
-                });
-
-                hls.on(Hls.Events.ERROR, (_, data) => {
-                    if (!mounted) return;
-                    if (!data.fatal) return; // ignore non-fatal stalls/retries
-                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                      // Try to recover network errors automatically
-                      hls.startLoad();
-                    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                      hls.recoverMediaError();
-                    } else {
-                      setError('Playback error. Try another server.');
-                      setIsLoading(false);
-                    }
-                  });
-              } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = url;
-              }
+        cssVar: {},
+        ...(defaultSub ? {
+          subtitle: {
+            url: defaultSub.file,
+            type: 'vtt',
+            encoding: 'utf-8',
+            escape: false,
+            style: {
+              color: '#ffffff',
+              fontSize: '22px',
+              fontWeight: '700',
             },
           },
+        } : {}),
+        customType: {
+          m3u8: function (video: HTMLVideoElement, url: string) {
+            if (Hls.isSupported()) {
+              const proxiedUrl = CORS_PROXY + encodeURIComponent(url);
+              const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: false,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                maxBufferSize: 60 * 1000 * 1000,
+                maxBufferHole: 0.3,
+                highBufferWatchdogPeriod: 3,
+                nudgeOffset: 0.2,
+                nudgeMaxRetry: 8,
+                startLevel: -1,
+                autoStartLoad: true,
+                backBufferLength: 10,
+                abrEwmaDefaultEstimate: 8000000,
+                abrEwmaFastLive: 5,
+                abrEwmaSlowLive: 10,
+                abrEwmaFastVoD: 5,
+                abrEwmaSlowVoD: 10,
+                fragLoadingTimeOut: 20000,
+                fragLoadingMaxRetry: 6,
+                fragLoadingRetryDelay: 200,
+                fragLoadingMaxRetryTimeout: 4000,
+                levelLoadingTimeOut: 15000,
+                levelLoadingMaxRetry: 4,
+                levelLoadingRetryDelay: 200,
+                manifestLoadingTimeOut: 15000,
+                manifestLoadingMaxRetry: 3,
+                manifestLoadingRetryDelay: 200,
+                startFragPrefetch: true,
+                progressive: true,
+                xhrSetup: (xhr: XMLHttpRequest, xhrUrl: string) => {
+                  const finalUrl = xhrUrl.startsWith(CORS_PROXY) ? xhrUrl : CORS_PROXY + encodeURIComponent(xhrUrl);
+                  xhr.open('GET', finalUrl, true);
+                },
+              });
+
+              hlsInstanceRef.current = hls;
+              hls.loadSource(proxiedUrl);
+              hls.attachMedia(video);
+
+              hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+                if (!mounted) return;
+                const levels = data.levels.map((level, index) => ({
+                  height: level.height,
+                  index,
+                }));
+                setQualityLevels(levels);
+
+                const target1080 = levels.find(l => l.height === 1080);
+                if (target1080) {
+                  hls.currentLevel = target1080.index;
+                  setCurrentQuality(target1080.index);
+                } else if (levels.length > 0) {
+                  const highest = levels.reduce((a, b) => a.height > b.height ? a : b);
+                  hls.currentLevel = highest.index;
+                  setCurrentQuality(highest.index);
+                }
+              });
+
+              hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+                if (!mounted) return;
+                setCurrentQuality(data.level);
+              });
+
+              hls.on(Hls.Events.ERROR, (_, data) => {
+                if (!mounted) return;
+                if (!data.fatal) return;
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                  hls.startLoad();
+                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                  hls.recoverMediaError();
+                } else {
+                  setError('Playback error. Try another server.');
+                  setIsLoading(false);
+                }
+              });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = url;
+            }
+          },
+        },
       });
 
       artRef.current = art;
 
       art.on('ready', () => {
-            if (!mounted) return;
-            setIsLoading(false);
-            if (savedProgress && savedProgress.timestamp > 10) {
-              art.currentTime = savedProgress.timestamp;
-            }
-            if (aspectRatio !== 'Default') {
-              const video = art.video;
-              if (video) {
-                if (aspectRatio === 'Full') {
-                  video.style.objectFit = 'cover';
-                } else {
-                  video.style.objectFit = 'contain';
-                  art.aspectRatio = aspectRatio.toLowerCase();
-                }
-              }
-            }
-          });
+        if (!mounted) return;
+        setIsLoading(false);
+        if (savedProgress && savedProgress.timestamp > 10) {
+          art.currentTime = savedProgress.timestamp;
+        }
+      });
 
       art.on('play', () => {
         if (!mounted) return;
@@ -582,20 +540,20 @@ const VideoPlayer = () => {
       });
 
       art.on('video:timeupdate', () => {
-          if (!mounted || isDraggingRef.current) return;
-          setCurrentTime(art.currentTime);
-          currentTimeRef.current = art.currentTime;
-          setDuration(art.duration);
-          durationRef.current = art.duration;
+        if (!mounted || isDraggingRef.current) return;
+        setCurrentTime(art.currentTime);
+        currentTimeRef.current = art.currentTime;
+        setDuration(art.duration);
+        durationRef.current = art.duration;
 
-          const io = introOutroRef.current;
-          if (io.intro) {
-            setShowSkipIntro(art.currentTime >= io.intro.start && art.currentTime <= io.intro.end);
-          }
-          if (io.outro) {
-            setShowSkipOutro(art.currentTime >= io.outro.start && art.currentTime <= io.outro.end);
-          }
-        });
+        const io = introOutroRef.current;
+        if (io.intro) {
+          setShowSkipIntro(art.currentTime >= io.intro.start && art.currentTime <= io.intro.end);
+        }
+        if (io.outro) {
+          setShowSkipOutro(art.currentTime >= io.outro.start && art.currentTime <= io.outro.end);
+        }
+      });
 
       art.on('video:waiting', () => {
         if (!mounted) return;
@@ -662,7 +620,7 @@ const VideoPlayer = () => {
         setForceRotate(false);
         return true;
       }
-    } catch {}
+    } catch { }
 
     if (isPortrait()) {
       setForceRotate(true);
@@ -703,7 +661,7 @@ const VideoPlayer = () => {
           await elem.webkitRequestFullscreen();
         }
         await lockToLandscape();
-      } catch {}
+      } catch { }
     };
 
     const timer = setTimeout(() => {
@@ -750,12 +708,12 @@ const VideoPlayer = () => {
     await doSaveProgress();
 
     if (document.fullscreenElement) {
-      await document.exitFullscreen().catch(() => {});
+      await document.exitFullscreen().catch(() => { });
     }
 
     try {
       await screen.orientation.unlock();
-    } catch {}
+    } catch { }
 
     if (artRef.current) {
       artRef.current.destroy();
@@ -824,38 +782,37 @@ const VideoPlayer = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-    const changeSubtitle = (track: StreamTrack | null) => {
-      const art = artRef.current;
-      if (!art) return;
+  const changeSubtitle = (track: StreamTrack | null) => {
+    const art = artRef.current;
+    if (!art) return;
 
-      try {
-        if (track) {
-          setCurrentSubtitle(track.label);
-          if (art.subtitle) {
-            art.subtitle.url = track.file;
-            art.subtitle.show = true;
-          }
-        } else {
-          setCurrentSubtitle(null);
-          if (art.subtitle) {
-            art.subtitle.show = false;
-          }
+    try {
+      if (track) {
+        setCurrentSubtitle(track.label);
+        if (art.subtitle) {
+          art.subtitle.url = track.file;
+          art.subtitle.show = true;
         }
-      } catch {}
-      setShowSubtitleMenu(false);
-    };
+      } else {
+        setCurrentSubtitle(null);
+        if (art.subtitle) {
+          art.subtitle.show = false;
+        }
+      }
+    } catch { }
+    setShowSubtitleMenu(false);
+  };
 
   const changeAudioType = (type: 'sub' | 'dub') => {
     if (type === currentAudioType) {
       setShowAudioMenu(false);
       return;
     }
-    
-    // Update URL to persist choice
+
     const newParams = new URLSearchParams(searchParams);
     newParams.set('audio', type);
     navigate({ search: newParams.toString() }, { replace: true });
-    
+
     setCurrentAudioType(type);
     setShowAudioMenu(false);
   };
@@ -895,10 +852,10 @@ const VideoPlayer = () => {
         height: '100vh',
       }}
       onMouseMove={(e) => {
-          if (e.nativeEvent instanceof MouseEvent && !(e.nativeEvent as any).sourceCapabilities?.firesTouchEvents) {
-            resetControlsTimeout();
-          }
-        }}
+        if (e.nativeEvent instanceof MouseEvent && !(e.nativeEvent as any).sourceCapabilities?.firesTouchEvents) {
+          resetControlsTimeout();
+        }
+      }}
     >
       <div
         ref={playerContainerRef}
@@ -914,64 +871,74 @@ const VideoPlayer = () => {
           z-index: 0 !important;
         }
         .art-video-player .art-bottom,
-          .art-video-player .art-top,
-          .art-video-player .art-mask,
-          .art-video-player .art-loading,
-          .art-video-player .art-notice,
-          .art-video-player .art-contextmenu,
-          .art-video-player .art-info {
-            display: none !important;
+        .art-video-player .art-top,
+        .art-video-player .art-mask,
+        .art-video-player .art-loading,
+        .art-video-player .art-notice,
+        .art-video-player .art-contextmenu,
+        .art-video-player .art-info {
+          display: none !important;
+        }
+
+        /* --- ANIME STYLE SUBTITLES (HIANIME/DANTOTSU) --- */
+        .art-video-player .art-subtitle {
+          font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+          font-size: 1.15rem !important;
+          font-weight: 700 !important;
+          line-height: 1.1 !important; /* Fixed tight spacing */
+          
+          /* Sharp high-contrast outline for readability without box */
+          text-shadow: 
+            -1.5px -1.5px 0 #000,  
+             1.5px -1.5px 0 #000,
+            -1.5px  1.5px 0 #000,
+             1.5px  1.5px 0 #000,
+             0px 2px 4px rgba(0,0,0,0.8) !important;
+
+          bottom: 85px !important; /* Positioned higher to clear UI controls */
+          padding: 0 10px !important;
+          background: none !important; /* No black shadow box */
+          left: 50% !important;
+          transform: translateX(-50%) !important;
+          width: fit-content !important;
+          max-width: 85% !important;
+          pointer-events: none !important;
+          text-align: center !important;
+        }
+
+        @media (min-width: 768px) {
+          .art-video-player .art-subtitle {
+            font-size: 1.8rem !important;
+            bottom: 110px !important;
+            max-width: 75% !important;
           }
-            .art-video-player .art-subtitle {
-              font-size: 0.72rem !important;
-              text-shadow: 0 1px 4px rgba(0,0,0,1) !important;
-              bottom: 6px !important;
-              padding: 2px 10px !important;
-              background: rgba(0, 0, 0, 0.55) !important;
-              border-radius: 4px !important;
-              left: 50% !important;
-              transform: translateX(-50%) !important;
-              width: fit-content !important;
-              max-width: 92% !important;
-              pointer-events: none !important;
-              text-align: center !important;
-              line-height: 1.35 !important;
-              font-weight: 500 !important;
-            }
-            @media (min-width: 768px) {
-              .art-video-player .art-subtitle {
-                font-size: 1.1rem !important;
-                bottom: 8px !important;
-                padding: 4px 18px !important;
-                max-width: 80% !important;
-              }
-            }
+        }
         .art-video-player video {
           object-fit: contain !important;
         }
       `}</style>
 
-        <div className="absolute inset-0 z-10 flex pointer-events-none">
-            <div className="flex-1 pointer-events-auto" onTouchEnd={() => handleTouchTap('left')} onClick={() => handleClickTap('left')} />
-            <div className="w-1/3 pointer-events-auto" onTouchEnd={() => handleTouchTap('center')} onClick={() => handleClickTap('center')} />
-            <div className="flex-1 pointer-events-auto" onTouchEnd={() => handleTouchTap('right')} onClick={() => handleClickTap('right')} />
-          </div>
+      <div className="absolute inset-0 z-10 flex pointer-events-none">
+        <div className="flex-1 pointer-events-auto" onTouchEnd={() => handleTouchTap('left')} onClick={() => handleClickTap('left')} />
+        <div className="w-1/3 pointer-events-auto" onTouchEnd={() => handleTouchTap('center')} onClick={() => handleClickTap('center')} />
+        <div className="flex-1 pointer-events-auto" onTouchEnd={() => handleTouchTap('right')} onClick={() => handleClickTap('right')} />
+      </div>
 
-        <AnimatePresence>
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 pointer-events-none"
-            >
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-primary animate-spin" />
-              </div>
-              <p className="mt-4 text-sm text-white/60 font-medium">Loading...</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 pointer-events-none"
+          >
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-primary animate-spin" />
+            </div>
+            <p className="mt-4 text-sm text-white/60 font-medium">Loading...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {seekFeedback && (
@@ -980,9 +947,8 @@ const VideoPlayer = () => {
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.5 }}
-            className={`absolute top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-4 pointer-events-none ${
-              seekFeedback === 'backward' ? 'left-1/4' : 'right-1/4'
-            }`}
+            className={`absolute top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-4 pointer-events-none ${seekFeedback === 'backward' ? 'left-1/4' : 'right-1/4'
+              }`}
           >
             <div className="relative flex items-center justify-center">
               <motion.div
@@ -1037,12 +1003,12 @@ const VideoPlayer = () => {
         )}
       </AnimatePresence>
 
-        <motion.div
-          initial={{ opacity: 1 }}
-          animate={{ opacity: showControls ? 1 : 0 }}
-          transition={{ duration: 0.3 }}
-          className="absolute inset-0 z-30 flex flex-col pointer-events-none"
-        >
+      <motion.div
+        initial={{ opacity: 1 }}
+        animate={{ opacity: showControls ? 1 : 0 }}
+        transition={{ duration: 0.3 }}
+        className="absolute inset-0 z-30 flex flex-col pointer-events-none"
+      >
         <div className={`p-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent h-24 ${showControls ? 'pointer-events-auto' : ''}`}>
           <div className="flex items-center gap-4">
             <button onClick={(e) => { e.stopPropagation(); handleBack(); }} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors">
@@ -1054,87 +1020,86 @@ const VideoPlayer = () => {
             </div>
           </div>
 
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowServerMenu(!showServerMenu); setShowQualityMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
-                  className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors"
-                >
-                  <Server className="w-5 h-5" />
-                </button>
-                {showServerMenu && filteredServers.length > 0 && (
-                  <div className="absolute right-0 top-12 bg-black/95 rounded-lg overflow-hidden min-w-[140px] border border-white/10 shadow-2xl">
-                    <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Servers</div>
-                    {filteredServers.map((server) => (
-                      <button
-                        key={server.data_id}
-                        onClick={(e) => { e.stopPropagation(); changeServer(server); }}
-                        className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${
-                          currentServer === server.serverName.toLowerCase() ? 'text-primary bg-white/5' : ''
-                        }`}
-                      >
-                        {server.serverName}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-                <div className="relative">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowQualityMenu(!showQualityMenu); setShowServerMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); setShowAspectRatioMenu(false); }}
-                    className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors"
-                  >
-                    <Settings className="w-5 h-5" />
-                  </button>
-                {showQualityMenu && qualityLevels.length > 0 && (
-                  <div className="absolute right-0 top-12 bg-black/95 rounded-lg overflow-hidden min-w-[120px] border border-white/10 shadow-2xl">
-                    <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Quality</div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setQuality(-1); }}
-                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentQuality === -1 ? 'text-primary bg-white/5' : ''}`}
-                    >
-                      Auto
-                    </button>
-                    {qualityLevels.map((level) => (
-                      <button
-                        key={level.index}
-                        onClick={(e) => { e.stopPropagation(); setQuality(level.index); }}
-                        className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentQuality === level.index ? 'text-primary bg-white/5' : ''}`}
-                      >
-                        {level.height}p
-                      </button>
-                    ))}
-                  </div>
-                  )}
-                </div>
-
-              <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors">
-                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowServerMenu(!showServerMenu); setShowQualityMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
+                className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <Server className="w-5 h-5" />
               </button>
+              {showServerMenu && filteredServers.length > 0 && (
+                <div className="absolute right-0 top-12 bg-black/95 rounded-lg overflow-hidden min-w-[140px] border border-white/10 shadow-2xl">
+                  <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Servers</div>
+                  {filteredServers.map((server) => (
+                    <button
+                      key={server.data_id}
+                      onClick={(e) => { e.stopPropagation(); changeServer(server); }}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentServer === server.serverName.toLowerCase() ? 'text-primary bg-white/5' : ''
+                        }`}
+                    >
+                      {server.serverName}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowQualityMenu(!showQualityMenu); setShowServerMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
+                className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              {showQualityMenu && qualityLevels.length > 0 && (
+                <div className="absolute right-0 top-12 bg-black/95 rounded-lg overflow-hidden min-w-[120px] border border-white/10 shadow-2xl">
+                  <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Quality</div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setQuality(-1); }}
+                    className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentQuality === -1 ? 'text-primary bg-white/5' : ''}`}
+                  >
+                    Auto
+                  </button>
+                  {qualityLevels.map((level) => (
+                    <button
+                      key={level.index}
+                      onClick={(e) => { e.stopPropagation(); setQuality(level.index); }}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentQuality === level.index ? 'text-primary bg-white/5' : ''}`}
+                    >
+                      {level.height}p
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <div className="flex-1 flex items-center justify-center gap-12 pointer-events-none">
+            <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center gap-12 pointer-events-none">
           <button
             onClick={(e) => { e.stopPropagation(); handlePreviousEpisode(); }}
             disabled={episode <= 1}
-              className={`w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-white/10 transition-all hover:scale-110 active:scale-95 ${showControls ? 'pointer-events-auto' : ''}`}
-            >
-              <SkipForward className="w-8 h-8 rotate-180 fill-white" />
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} className={`w-24 h-24 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-all hover:scale-110 active:scale-90 shadow-2xl ${showControls ? 'pointer-events-auto' : ''}`}>
-              {isPlaying ? <Pause className="w-12 h-12 fill-primary-foreground" /> : <Play className="w-12 h-12 ml-1 fill-primary-foreground" />}
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleNextEpisode(); }}
-              disabled={!hasNextEpisode}
-              className={`w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-white/10 transition-all hover:scale-110 active:scale-95 ${showControls ? 'pointer-events-auto' : ''}`}
+            className={`w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-white/10 transition-all hover:scale-110 active:scale-95 ${showControls ? 'pointer-events-auto' : ''}`}
+          >
+            <SkipForward className="w-8 h-8 rotate-180 fill-white" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} className={`w-24 h-24 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-all hover:scale-110 active:scale-90 shadow-2xl ${showControls ? 'pointer-events-auto' : ''}`}>
+            {isPlaying ? <Pause className="w-12 h-12 fill-primary-foreground" /> : <Play className="w-12 h-12 ml-1 fill-primary-foreground" />}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleNextEpisode(); }}
+            disabled={!hasNextEpisode}
+            className={`w-14 h-14 rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-white/10 transition-all hover:scale-110 active:scale-95 ${showControls ? 'pointer-events-auto' : ''}`}
           >
             <SkipForward className="w-8 h-8 fill-white" />
           </button>
         </div>
 
-          <div className={`p-6 bg-gradient-to-t from-black/80 to-transparent ${showControls ? 'pointer-events-auto' : ''}`}>
+        <div className={`p-6 bg-gradient-to-t from-black/80 to-transparent ${showControls ? 'pointer-events-auto' : ''}`}>
           <div className="relative flex flex-col gap-4">
             <style>{`
               .video-slider [data-orientation="horizontal"] {
@@ -1209,117 +1174,90 @@ const VideoPlayer = () => {
                 <span className="text-sm font-bold tabular-nums tracking-wider">{formatTime(currentTime)} <span className="text-white/20">/</span> {formatTime(duration)}</span>
               </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowAspectRatioMenu(!showAspectRatioMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
-                    >
-                      <Square className="w-4 h-4 text-primary" />
-                      {aspectRatio}
-                    </button>
-                    {showAspectRatioMenu && (
-                      <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[120px] border border-white/10 shadow-2xl">
-                        <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Ratio</div>
-                        {ASPECT_RATIOS.map((ratio) => (
-                          <button
-                            key={ratio}
-                            onClick={(e) => { e.stopPropagation(); changeAspectRatio(ratio); }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${
-                              aspectRatio === ratio ? 'text-primary bg-white/5' : ''
-                            }`}
-                          >
-                            {ratio}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowPlaybackSpeedMenu(!showPlaybackSpeedMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowSubtitleMenu(false); setShowAudioMenu(false); setShowAspectRatioMenu(false); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
-                    >
-                      <Gauge className="w-4 h-4 text-primary" />
-                      {playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x`}
-                    </button>
-                    {showPlaybackSpeedMenu && (
-                      <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[100px] border border-white/10 shadow-2xl">
-                        <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Speed</div>
-                        {PLAYBACK_SPEEDS.map((speed) => (
-                          <button
-                            key={speed}
-                            onClick={(e) => { e.stopPropagation(); changePlaybackSpeed(speed); }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${
-                              playbackSpeed === speed ? 'text-primary bg-white/5' : ''
-                            }`}
-                          >
-                            {speed}x
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                    <div className="relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowSubtitleMenu(!showSubtitleMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
-                        className="w-10 h-10 rounded-full hover:bg-white/10 transition-colors flex items-center justify-center"
-                      >
-                        {currentSubtitle ? <Captions className="w-5 h-5" /> : <CaptionsOff className="w-5 h-5" />}
-                      </button>
-                      {showSubtitleMenu && (
-                        <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[160px] border border-white/10 shadow-2xl max-h-[300px] overflow-y-auto">
-                          <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Subtitles</div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); changeSubtitle(null); }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${!currentSubtitle ? 'text-primary bg-white/5' : ''}`}
-                          >
-                            Off
-                          </button>
-                          {subtitles.filter(t => t.kind === 'captions').map((track, i) => (
-                            <button
-                              key={i}
-                              onClick={(e) => { e.stopPropagation(); changeSubtitle(track); }}
-                              className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentSubtitle === track.label ? 'text-primary bg-white/5' : ''}`}
-                            >
-                              {track.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {hasDub && (
-                      <div className="relative">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowPlaybackSpeedMenu(!showPlaybackSpeedMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowSubtitleMenu(false); setShowAudioMenu(false); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
+                  >
+                    <Gauge className="w-4 h-4 text-primary" />
+                    {playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x`}
+                  </button>
+                  {showPlaybackSpeedMenu && (
+                    <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[100px] border border-white/10 shadow-2xl">
+                      <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Speed</div>
+                      {PLAYBACK_SPEEDS.map((speed) => (
                         <button
-                          onClick={(e) => { e.stopPropagation(); setShowAudioMenu(!showAudioMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowPlaybackSpeedMenu(false); setShowSubtitleMenu(false); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
+                          key={speed}
+                          onClick={(e) => { e.stopPropagation(); changePlaybackSpeed(speed); }}
+                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${playbackSpeed === speed ? 'text-primary bg-white/5' : ''
+                            }`}
                         >
-                          <Languages className="w-4 h-4 text-primary" />
-                          {currentAudioType === 'sub' ? 'SUB' : 'DUB'}
+                          {speed}x
                         </button>
-                        {showAudioMenu && (
-                          <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[120px] border border-white/10 shadow-2xl">
-                            <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Audio</div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); changeAudioType('sub'); }}
-                              className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentAudioType === 'sub' ? 'text-primary bg-white/5' : ''}`}
-                            >
-                              Japanese (Sub)
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); changeAudioType('dub'); }}
-                              className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentAudioType === 'dub' ? 'text-primary bg-white/5' : ''}`}
-                            >
-                              English (Dub)
-                            </button>
-                          </div>
-                        )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowSubtitleMenu(!showSubtitleMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
+                    className="w-10 h-10 rounded-full hover:bg-white/10 transition-colors flex items-center justify-center"
+                  >
+                    {currentSubtitle ? <Captions className="w-5 h-5" /> : <CaptionsOff className="w-5 h-5" />}
+                  </button>
+                  {showSubtitleMenu && (
+                    <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[160px] border border-white/10 shadow-2xl max-h-[300px] overflow-y-auto">
+                      <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Subtitles</div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); changeSubtitle(null); }}
+                        className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${!currentSubtitle ? 'text-primary bg-white/5' : ''}`}
+                      >
+                        Off
+                      </button>
+                      {subtitles.filter(t => t.kind === 'captions').map((track, i) => (
+                        <button
+                          key={i}
+                          onClick={(e) => { e.stopPropagation(); changeSubtitle(track); }}
+                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentSubtitle === track.label ? 'text-primary bg-white/5' : ''}`}
+                        >
+                          {track.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {hasDub && (
+                  <div className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowAudioMenu(!showAudioMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowPlaybackSpeedMenu(false); setShowSubtitleMenu(false); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
+                    >
+                      <Languages className="w-4 h-4 text-primary" />
+                      {currentAudioType === 'sub' ? 'SUB' : 'DUB'}
+                    </button>
+                    {showAudioMenu && (
+                      <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[120px] border border-white/10 shadow-2xl">
+                        <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Audio</div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); changeAudioType('sub'); }}
+                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentAudioType === 'sub' ? 'text-primary bg-white/5' : ''}`}
+                        >
+                          Japanese (Sub)
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); changeAudioType('dub'); }}
+                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${currentAudioType === 'dub' ? 'text-primary bg-white/5' : ''}`}
+                        >
+                          English (Dub)
+                        </button>
                       </div>
                     )}
-                </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
