@@ -9,7 +9,7 @@ import { Slider } from '@/components/ui/slider';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 
-const API_BASE = 'https://animeapi-sage.vercel.app';
+const API_BASE = 'https://kaido-api-v1-opal.vercel.app';
 const CORS_PROXY = '/api/proxy?url=';
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
